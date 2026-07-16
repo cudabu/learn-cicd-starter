@@ -5,36 +5,41 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
-    name: Deploy
+  # Job 1: Build and compile your Go binary
+  build:
+    name: Build Production
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version: "1.26.0"
+          cache: true # Proactively speeds up future workflow runs
 
       - name: Build Production
         run: bash scripts/buildprod.sh
 
+  # Job 2: Build and publish container (Executes only if compilation succeeds)
   publish-container:
+    name: Publish Container
     runs-on: ubuntu-latest
+    needs: build # Critical: Ensures we don't build bad container images if Go compilation fails
 
     steps:
-    - id: 'auth'
-      uses: 'google-github-actions/auth@v2'
-      with:
-        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      - name: Check out code
+        uses: actions/checkout@v4 # Missing step: Necessary so Google Cloud Build can zip your files
 
-    - name: 'Set up Cloud SDK'
-      uses: 'google-github-actions/setup-gcloud@v3'
+      - id: 'auth'
+        name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-    - name: 'Use gcloud CLI'
-      run: 'gcloud info'
+      # Note: 'setup-gcloud' is omitted because gcloud commands run perfectly with just 'auth'
 
-    - name: 'Publish container'
-      run: 'gcloud builds submit --tag us-central1-docker.pkg.dev/notely-502600/notely-ar-repo/notely:latest .'
+      - name: Publish container
+        run: |
+          gcloud builds submit --tag us-central1-docker.pkg.dev/notely-502600/notely-ar-repo/notely:latest .
