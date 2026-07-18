@@ -27,7 +27,7 @@ jobs:
         run: bash scripts/buildprod.sh
 
       - name: Migrate Database
-        run: bash scripts/migrate.sh
+        run: bash scripts/migrateup.sh
 
       - id: 'auth'
         name: Authenticate to Google Cloud
