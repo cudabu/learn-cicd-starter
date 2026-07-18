@@ -8,6 +8,8 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Check out code
@@ -19,18 +21,20 @@ jobs:
           go-version: "1.26.0"
           cache: true
 
-      # 1. This generates the local 'notely' binary file
+      - name: Setup Goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest    
       - name: Build Production
         run: bash scripts/buildprod.sh
 
-      # 2. Authenticate with Google
+      - name: Migrate Database
+        run: bash scripts/migrate.sh
+
       - id: 'auth'
         name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-      # 3. The '.' now successfully includes the 'notely' binary created in step 1
       - name: Publish container
         run: |
           gcloud builds submit --tag us-central1-docker.pkg.dev/notely-502600/notely-ar-repo/notely:latest .
